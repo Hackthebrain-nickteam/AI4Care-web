@@ -10,6 +10,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
+  isFirebaseConfigured: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const isFirebaseConfigured = !!auth;
 
   useEffect(() => {
     if (!auth) {
@@ -54,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     if (!auth) {
-        console.error("Firebase is not configured. Cannot sign in.");
         return;
     }
     const provider = new GoogleAuthProvider();
@@ -68,7 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutUser = async () => {
     if (!auth) {
-        console.error("Firebase is not configured. Cannot sign out.");
         return;
     }
     try {
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOutUser }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOutUser, isFirebaseConfigured }}>
       {children}
     </AuthContext.Provider>
   );

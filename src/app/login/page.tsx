@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { HeartPulse, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
@@ -14,8 +15,9 @@ const GoogleIcon = () => (
   );
 
 export default function LoginPage() {
-  const { signInWithGoogle, loading, user } = useAuth();
+  const { signInWithGoogle, loading, user, isFirebaseConfigured } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!loading && user) {
@@ -23,6 +25,18 @@ export default function LoginPage() {
     }
   }, [loading, user, router]);
 
+  const handleSignIn = () => {
+    if (!isFirebaseConfigured) {
+      toast({
+        variant: 'destructive',
+        title: 'Setup Required',
+        description:
+          'Firebase is not configured. Please add your API keys to the .env file.',
+      });
+      return;
+    }
+    signInWithGoogle();
+  };
 
   if (loading || user) {
     return (
@@ -46,7 +60,7 @@ export default function LoginPage() {
           <CardDescription>Sign in to your AI Health Assistant</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={signInWithGoogle} className="w-full">
+          <Button onClick={handleSignIn} className="w-full">
             <GoogleIcon />
             Sign in with Google
           </Button>
