@@ -1,72 +1,111 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { HeartPulse } from 'lucide-react';
+import { useState } from 'react';
+import { HeartPulse, Loader2, LogOut } from 'lucide-react';
 
 import SymptomForm from '@/components/symptom-form';
 import TriageResult from '@/components/triage-result';
 import type { TriageResultData } from '@/lib/definitions';
 import { logInteraction } from '@/lib/logging';
+import { useAuth } from '@/context/auth-context';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function Home() {
+  const { user, signOutUser, loading } = useAuth();
   const [result, setResult] = useState<TriageResultData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [formVisible, setFormVisible] = useState(true);
 
-  useEffect(() => {
-    if (result) {
-      logInteraction({
-        ...result,
-        timestamp: new Date().toISOString(),
-      });
-      setFormVisible(false);
-    }
-  }, [result]);
+  const handleSetResult = (data: TriageResultData) => {
+    logInteraction({
+      ...data,
+      timestamp: new Date().toISOString(),
+    });
+    setResult(data);
+  };
 
   const handleNewAssessment = () => {
     setResult(null);
-    setFormVisible(true);
   };
-  
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12">
+    <main className="flex min-h-screen flex-col items-center bg-secondary p-4 sm:p-8 md:p-12">
       <div className="w-full max-w-2xl">
-        <header className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex items-center gap-3">
+        <header className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <HeartPulse className="h-10 w-10 text-primary" />
             <h1 className="font-headline text-4xl font-bold text-primary">
               AI4Care
             </h1>
           </div>
-          <p className="text-lg text-muted-foreground">
-            Your AI-powered health assistant for symptom analysis and triage.
-          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Avatar className="h-10 w-10 border">
+                  <AvatarImage
+                    src={user.photoURL ?? ''}
+                    alt={user.displayName ?? 'User'}
+                  />
+                  <AvatarFallback>
+                    {user.displayName?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {user.displayName}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOutUser}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
         <div className="relative">
-          <div
-            className={`transition-opacity duration-500 ${
-              formVisible ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <SymptomForm
-              setResult={setResult}
-              setIsLoading={setIsLoading}
-              isLoading={isLoading}
-            />
-          </div>
-
-          {result && (
-            <div
-              className={`transition-opacity duration-700 delay-300 ${
-                !formVisible ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              <TriageResult
-                result={result}
-                onNewAssessment={handleNewAssessment}
+          {!result ? (
+            <div>
+              <p className="mb-8 text-center text-lg text-muted-foreground">
+                Welcome back, {user.displayName?.split(' ')[0]}! How are you
+                feeling today?
+              </p>
+              <SymptomForm
+                setResult={handleSetResult}
+                setIsLoading={setIsLoading}
+                isLoading={isLoading}
               />
             </div>
+          ) : (
+            <TriageResult
+              result={result}
+              onNewAssessment={handleNewAssessment}
+            />
           )}
         </div>
       </div>
