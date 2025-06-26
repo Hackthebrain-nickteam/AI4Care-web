@@ -112,6 +112,7 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
   const [showLocationInput, setShowLocationInput] = useState(false);
   const [manualLocation, setManualLocation] = useState('');
   const [isFindingER, setIsFindingER] = useState(false);
+  const [erResults, setErResults] = useState<{ name: string; address: string,distance:string }[]>([]);
   const config = triageConfig[result.urgencyLevel];
 
   const handleExplain = async () => {
@@ -123,13 +124,42 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
 
   const findNearestERs = async (location: { latitude: number; longitude: number } | string) => {
     setIsFindingER(true);
-    // TODO: Implement API call to find nearest ERs using the provided location
-    // This is where you would integrate with a service like Google Places API
-    console.log('Finding nearest ERs for location:', location);
-    // Replace this with your actual API call
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+    setErResults([]);
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+    if (typeof location === 'string') {
+      setIsFindingER(false);
+      alert('Manual location search is not implemented. Please use location services.');
+      return;
+    } else {
+      latitude = location.latitude;
+      longitude = location.longitude;
+    }
+    const apiKey = 'GOOGLE_MAPS_API_KEY';
+    
+    
+    try {
+      const url = `/api/er?latitude=${latitude}&longitude=${longitude}`;
+      const response = await fetch(url);
+      console.log(response);
+      const data = await response.json();
+      console.log(data);
+      if (data.length > 0) {
+        setErResults(
+          data.map((place: any) => ({
+            name: place.name,
+            address: place.vicinity,
+            distance:place.distance
+          }))
+        );
+      } else {
+        setErResults([]);
+      }
+    } catch (error) {
+      setErResults([]);
+      alert('Failed to fetch ER locations.');
+    }
     setIsFindingER(false);
-    // TODO: Handle and display the results
   };
 
   const handleFindERClick = async (resourceTitle: string) => {
@@ -141,10 +171,10 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
           },
           (error) => {
             console.error('Geolocation error:', error);
-            setShowLocationInput(true); // Show manual input on error
+            setShowLocationInput(true);
           });
       } else {
-        setShowLocationInput(true); // Show manual input if geolocation is not supported
+        setShowLocationInput(true);
       }
     }
   };
@@ -192,20 +222,18 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">{resource.description}</p>
-                  {resource.actionText === 'Find Nearest ER' || resource.actionText === 'Find an Urgent Care' ? (
-                    <>
-                      <Button
-                        variant=\"outline\"
-                        className=\"w-full\"
-                        onClick={() => handleFindERClick(resource.title)}
-                        disabled={isFindingER}
-                      >
-                        {isFindingER && <Loader2 className=\"mr-2 h-4 w-4 animate-spin\" />}
-                        {resource.actionText}
-                      </Button>
-                    </>
+                  {(resource.actionText === 'Find Nearest ER' || resource.actionText === 'Find an Urgent Care') ? (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleFindERClick(resource.title)}
+                      disabled={isFindingER === true}
+                    >
+                      {isFindingER ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {resource.actionText}
+                    </Button>
                   ) : (
-                    <Button variant=\"outline\" className=\"w-full\">{resource.actionText}</Button>
+                    <Button variant="outline" className="w-full">{resource.actionText}</Button>
                   )}
                 </CardContent>
               </Card>
@@ -216,19 +244,34 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
       </CardContent>
       <CardFooter>
         {showLocationInput && (
-          <div className=\"flex flex-col gap-2 w-full\">
+          <div className="flex flex-col gap-2 w-full">
             <Input
-              placeholder=\"Enter your location (e.g., city, zip code)\"
+              placeholder="Enter your location (e.g., city, zip code)"
               value={manualLocation}
-              onChange={(e) => setManualLocation(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setManualLocation(e.target.value)}
             />
             <Button
               onClick={() => findNearestERs(manualLocation)}
-              disabled={!manualLocation || isFindingER}
+              disabled={!manualLocation || isFindingER === true}
             >
-               {isFindingER && <Loader2 className=\"mr-2 h-4 w-4 animate-spin\" />}
+              {isFindingER ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Search with Manual Location
             </Button>
+          </div>
+        )}
+
+        {erResults.length > 0 && (
+          <div className="mt-4 w-full">
+            <h4 className="font-semibold mb-2">Nearest Emergency Rooms:</h4>
+            <ul>
+              {erResults.map((er, idx) => (
+                <li key={idx} className="mb-2 flex flex-row space-x-12">
+                  <strong>{er.name}</strong><br />
+                  <span className="text-muted-foreground">{er.address}</span>
+                  {/* <span className="text-muted-foreground">{er.distance}</span> */}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
