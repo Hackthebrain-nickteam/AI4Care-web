@@ -12,6 +12,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -108,6 +109,9 @@ const triageConfig: Record<
 export default function TriageResult({ result, onNewAssessment }: TriageResultProps) {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isExplanationLoading, setIsExplanationLoading] = useState(false);
+  const [showLocationInput, setShowLocationInput] = useState(false);
+  const [manualLocation, setManualLocation] = useState('');
+  const [isFindingER, setIsFindingER] = useState(false);
   const config = triageConfig[result.urgencyLevel];
 
   const handleExplain = async () => {
@@ -115,6 +119,34 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
     const explainedText = await getExplainedOutcome(result);
     setExplanation(explainedText);
     setIsExplanationLoading(false);
+  };
+
+  const findNearestERs = async (location: { latitude: number; longitude: number } | string) => {
+    setIsFindingER(true);
+    // TODO: Implement API call to find nearest ERs using the provided location
+    // This is where you would integrate with a service like Google Places API
+    console.log('Finding nearest ERs for location:', location);
+    // Replace this with your actual API call
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+    setIsFindingER(false);
+    // TODO: Handle and display the results
+  };
+
+  const handleFindERClick = async (resourceTitle: string) => {
+    if (resourceTitle === 'Go to Nearest ER' || resourceTitle === 'Find an Urgent Care') {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            findNearestERs({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+            setShowLocationInput(true); // Show manual input on error
+          });
+      } else {
+        setShowLocationInput(true); // Show manual input if geolocation is not supported
+      }
+    }
   };
 
   return (
@@ -160,7 +192,21 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">{resource.description}</p>
-                  <Button variant="outline" className="w-full">{resource.actionText}</Button>
+                  {resource.actionText === 'Find Nearest ER' || resource.actionText === 'Find an Urgent Care' ? (
+                    <>
+                      <Button
+                        variant=\"outline\"
+                        className=\"w-full\"
+                        onClick={() => handleFindERClick(resource.title)}
+                        disabled={isFindingER}
+                      >
+                        {isFindingER && <Loader2 className=\"mr-2 h-4 w-4 animate-spin\" />}
+                        {resource.actionText}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant=\"outline\" className=\"w-full\">{resource.actionText}</Button>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -169,6 +215,23 @@ export default function TriageResult({ result, onNewAssessment }: TriageResultPr
 
       </CardContent>
       <CardFooter>
+        {showLocationInput && (
+          <div className=\"flex flex-col gap-2 w-full\">
+            <Input
+              placeholder=\"Enter your location (e.g., city, zip code)\"
+              value={manualLocation}
+              onChange={(e) => setManualLocation(e.target.value)}
+            />
+            <Button
+              onClick={() => findNearestERs(manualLocation)}
+              disabled={!manualLocation || isFindingER}
+            >
+               {isFindingER && <Loader2 className=\"mr-2 h-4 w-4 animate-spin\" />}
+              Search with Manual Location
+            </Button>
+          </div>
+        )}
+
         <Button onClick={onNewAssessment} className="w-full">
           Start New Assessment
         </Button>
